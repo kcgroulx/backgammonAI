@@ -1,7 +1,3 @@
-EMPTY = 0
-WHITE = 1
-BLACK = -1
-
 # Function to check if all elements in a list are zeros between start and end
 def check_zeros(lst, start, end):
     return all(x == 0 for x in lst[start:end])
