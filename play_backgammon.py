@@ -5,13 +5,15 @@ backgammon = Backgammon()
 backgammon.start()
 print_board(backgammon)
 
-backgammon.generate_legal_moves([1,2])
-print(backgammon.legal_moves)
 
-if backgammon.move(1, 2) == False:
-    print("*** invalid move ***")
-else:
-    print_board(backgammon)
+while backgammon.win == None:
+    # Generate legal moves off of dice roll
+    backgammon.generate_legal_moves([1,2])
 
-backgammon.generate_legal_moves([1,2])
-print(backgammon.legal_moves)
+    print("legalmoves = " + str(backgammon.legal_moves))
+
+    
+    if backgammon.move(1, 2) == False:
+        print("*** invalid move ***")
+    else:
+        print_board(backgammon)

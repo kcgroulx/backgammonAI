@@ -1,7 +1,7 @@
 from utils import check_zeros, switch_values
 from backgammon import EMPTY, WHITE, BLACK
 
-B_CHAR = "@"
+B_CHAR = "\033[94mO\033[0m"
 W_CHAR = "O"
 
 def print_board(backgammon_board):
@@ -9,7 +9,7 @@ def print_board(backgammon_board):
     bar = backgammon_board.bar.copy()
     string_list = []
 
-    string_list.append("-------------------------------------------------------------------")
+    string_list.append("|-----------------------------------------------------------------|")
     string_list.append("| 13 | 14 | 15 | 16 | 17 | 18 |     | 19 | 20 | 21 | 22 | 23 | 24 |")
     string_list.append("|-----------------------------------------------------------------|")
 
@@ -47,7 +47,7 @@ def print_board(backgammon_board):
         string_list.append(row)
 
     string_list.append("|    |    |    |    |    |    |     |    |    |    |    |    |    |")
-    string_list.append("------------------------------| BAR |------------------------------")
+    string_list.append("|-----------------------------| BAR |-----------------------------|")
     string_list.append("|    |    |    |    |    |    |     |    |    |    |    |    |    |")
 
     top_half_size = len(string_list)
@@ -88,7 +88,7 @@ def print_board(backgammon_board):
     string_list[top_half_size:] = reversed(string_list[top_half_size:])
     string_list.append("|-----------------------------------------------------------------|")
     string_list.append("| 12 | 11 | 10 |  9 |  8 |  7 |     |  6 |  5 |  4 |  3 |  2 |  1 |")
-    string_list.append("-------------------------------------------------------------------")
+    string_list.append("|-----------------------------------------------------------------|")
 
     for row in string_list:
         print(row)
