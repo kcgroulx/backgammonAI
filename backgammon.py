@@ -91,6 +91,27 @@ class Backgammon:
 
         # Interate through each die
         for die in self.dice:
+            # Check bar
+            if self.bar[self.turn] != 0:
+                # Get start and end point/index
+                start_point = 0 if self.turn == WHITE else 25
+                end_point = die if self.turn == WHITE else 25 - die
+                end_index = point_to_index(end_point)
+                end_index_color = self.get_color(end_index)
+
+                # If end_index is empty or the same color
+                if end_index_color == EMPTY or end_index_color == self.turn:
+                    self.legal_moves.append(LegalMove(start_point, end_point, die))
+
+                # If opposite color
+                else:
+                    if abs(self.board[end_index]) == 1:
+                        self.legal_moves.append(LegalMove(start_point, end_point, die))
+
+                # continue since there is a piece on the bar
+                continue
+                
+
             # Interate through each index on the board
             for start_index in range(len(self.board)):
                 # Check if start index is the same color as turn
@@ -111,6 +132,13 @@ class Backgammon:
                 # If end_index is empty or the same color
                 if end_index_color == EMPTY or end_index_color == self.turn:
                     self.legal_moves.append(LegalMove(start_point, end_point, die))
+
+                # If opposite color
+                else:
+                    if abs(self.board[end_index]) == 1:
+                        self.legal_moves.append(LegalMove(start_point, end_point, die))
+
+                        
 
     def check_legal_move(self, start_point, end_point):
         # Check if move exists in legal moves list
@@ -134,21 +162,47 @@ class Backgammon:
         if legal_move == False:
             return False
 
-        # Convert to index
-        start_index = point_to_index(start_point)
-        end_index = point_to_index(end_point)
-        end_index_color = self.get_color(end_index)
+        if start_point == 0 or start_point == 25:
+            # Convert to index
+            end_index = point_to_index(end_point)
+            end_index_color = self.get_color(end_index)
 
-        # case: empty or same color
-        if end_index_color == EMPTY or end_index_color == self.turn: 
-            # Move stone
-            self.board[start_index] -= self.turn
-            self.board[end_index] += self.turn
+            # case: empty or same color
+            if end_index_color == EMPTY or end_index_color == self.turn: 
+                # Move stone
+                self.bar[self.turn] -= 1
+                self.board[end_index] += self.turn
+
+            # case: opposite color
+            if end_index_color != self.turn and end_index_color != EMPTY:
+                # Move stone
+                self.bar[self.turn] -= 1
+                self.board[end_index] = self.turn
+                self.bar[end_index_color] += 1
+        else:
+            # Convert to index
+            start_index = point_to_index(start_point)
+            end_index = point_to_index(end_point)
+            end_index_color = self.get_color(end_index)
+
+            # case: empty or same color
+            if end_index_color == EMPTY or end_index_color == self.turn: 
+                # Move stone
+                self.board[start_index] -= self.turn
+                self.board[end_index] += self.turn
+
+            # case: opposite color
+            if end_index_color != self.turn and end_index_color != EMPTY:
+                # Move stone
+                self.board[start_index] -= self.turn
+                self.board[end_index] = self.turn
+                self.bar[end_index_color] += 1
+
         self.remove_die(legal_move.die)
         self.generate_legal_moves()
 
-        # Next turn if no more dice
-        if len(self.dice) == 0:
+        # Next turn if no legal moves or no dice
+        if len(self.legal_moves) == 0 or len(self.dice) == 0:
             self.next_turn()
 
         return True
