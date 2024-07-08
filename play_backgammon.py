@@ -1,19 +1,20 @@
 from backgammon import Backgammon
-from gui import print_board
+from gui import print_board, print_dice, print_legal_moves, print_turn
 
 backgammon = Backgammon()
 backgammon.start()
-print_board(backgammon)
 
 
 while backgammon.win == None:
-    # Generate legal moves off of dice roll
-    backgammon.generate_legal_moves([1,2])
+    print_board(backgammon)
+    print_turn(backgammon)
+    print_dice(backgammon)
+    print_legal_moves(backgammon)
 
-    print("legalmoves = " + str(backgammon.legal_moves))
+    user_input = input("Enter move: ")
+    elements = user_input.split(',')
 
-    
-    if backgammon.move(1, 2) == False:
-        print("*** invalid move ***")
-    else:
-        print_board(backgammon)
+    start_point = int(elements[0])
+    end_point= int(elements[1])
+
+    backgammon.move_piece(start_point, end_point)

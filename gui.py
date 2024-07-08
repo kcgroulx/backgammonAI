@@ -1,8 +1,24 @@
 from utils import check_zeros, switch_values
-from backgammon import EMPTY, WHITE, BLACK
+from backgammon import EMPTY, WHITE, BLACK, Backgammon, LegalMove
 
 B_CHAR = "\033[94mO\033[0m"
 W_CHAR = "O"
+
+def print_turn(backgammon_board: Backgammon):
+    if backgammon_board.turn == WHITE:
+        print("Turn: White")
+    elif backgammon_board.turn == BLACK:
+        print("Turn: Black")
+
+def print_dice(backgammon_board: Backgammon):
+    print(f"Dice: {backgammon_board.dice}")
+
+def print_legal_moves(backgammon_board: Backgammon):
+    moves_list_to_print = []
+    for legal_move in backgammon_board.legal_moves:
+        moves_list_to_print.append((legal_move.start_point, legal_move.end_point))
+    moves_list_to_print = list(set(moves_list_to_print))
+    print(f"legal moves: {moves_list_to_print}")
 
 def print_board(backgammon_board):
     board = backgammon_board.board.copy()

@@ -13,13 +13,12 @@ def point_to_index(point):
 def index_to_point(index):
     return index + 1
 
-# LegalMoves class
-# Contains a list of legal moves for a given die
-class LegalMoves:
-    def __init__(self, legal_moves, die):
-        self.legal_moves = legal_moves
+# LegalMove Class
+class LegalMove:
+    def __init__(self, start_point, end_point, die):
+        self.start_point = start_point
+        self.end_point = end_point
         self.die = die
-
 
 # Backgammon class
 # Backgammon board is a list indexed from 0-23.
@@ -32,8 +31,12 @@ class Backgammon:
         self.home = {WHITE: 0, BLACK: 0} # Home for each player
         self.turn = WHITE
         self.dice = []
-        self.legal_moves = []
+        self.legal_moves: list[LegalMove] = []
         self.win = None
+
+        self.start()
+        self.roll_dice()
+        self.generate_legal_moves()
 
     # Initialize board to starting position
     def start(self):
@@ -52,13 +55,16 @@ class Backgammon:
 
     # Randomly roll dice
     def roll_dice(self):
+        # Get both die between 1 and 6
         die1 = random.randint(1, 6)
         die2 = random.randint(1, 6)
 
+        # Check if dice are the same
         if die1 == die2:
             self.dice = [die1] * 4
         else:
             self.dice = [die1, die2]
+        self.dice.sort()
 
     # Flips turn
     def next_turn(self):
@@ -66,6 +72,8 @@ class Backgammon:
             self.turn = BLACK
         else:
             self.turn = WHITE
+        self.roll_dice()
+        self.generate_legal_moves()
 
     # Gets color
     def get_color(self, index):
@@ -76,48 +84,71 @@ class Backgammon:
         if self.board[index] < 0:
             return BLACK
 
-    # Generates legal move for a given die and index
-    def generate_legal_move(self, die, index):
-        # Check if we are on a stone of the current player
-        if self.get_color(index) == self.turn:
-            end_index = index + (die * self.turn)
-            end_color = self.get_color(end_index)
-            
-            # If end index is empty or same color
-            if end_color == EMPTY or end_color == self.turn:
-                return (index_to_point(index), index_to_point(end_index))
-
-    # Generates all legal moves for the game state
+    # Generates legal moves for a given die and index
     def generate_legal_moves(self):
-        # Clear legal moves
+        # Clear legal_moves list
         self.legal_moves = []
 
         # Interate through each die
         for die in self.dice:
-            legal_moves_list = []
-            # Append legal moves for each point
-            for index in range(len(self.board)):
-                legal_moves_list.append(self.generate_legal_move(die, index))
-            
-            # Append legal moves for this die
-            self.legal_moves.append(LegalMoves(legal_moves_list, die))        
+            # Interate through each index on the board
+            for start_index in range(len(self.board)):
+                # Check if start index is the same color as turn
+                start_index_color = self.get_color(start_index)
+                if start_index_color != self.turn:
+                    continue
 
-    def move_piece(self, move):
-        # If move is not legal, return False
-        if move not in self.legal_moves:
+                # Get and verify end_index
+                end_index = start_index + (die * self.turn)
+                if end_index > 23 or end_index < 0:
+                    continue # TODO: Skip for now
+                end_index_color = self.get_color(end_index)
+
+                # Convert index to point
+                start_point = index_to_point(start_index)
+                end_point = index_to_point(end_index)
+
+                # If end_index is empty or the same color
+                if end_index_color == EMPTY or end_index_color == self.turn:
+                    self.legal_moves.append(LegalMove(start_point, end_point, die))
+
+    def check_legal_move(self, start_point, end_point):
+        # Check if move exists in legal moves list
+        for legal_move in self.legal_moves:
+            if legal_move.start_point == start_point and legal_move.end_point == end_point:
+                return legal_move
+        # Move not in legal move list
+        return False
+
+    # Removes a die from the self.dice list
+    def remove_die(self, die):
+        if die in self.dice:
+            self.dice.remove(die)
+        else:
+            raise ValueError(f"Die value {die} not in dice list")
+
+    # Moves piece on board
+    def move_piece(self, start_point, end_point):
+        # Verify move is legal
+        legal_move = self.check_legal_move(start_point, end_point)
+        if legal_move == False:
             return False
-        
-        # Get points and index
-        start_point, end_point = move
+
+        # Convert to index
         start_index = point_to_index(start_point)
         end_index = point_to_index(end_point)
+        end_index_color = self.get_color(end_index)
 
-        # Move stone
-        self.board[start_index] -= self.turn
-        self.board[end_index] += self.turn
+        # case: empty or same color
+        if end_index_color == EMPTY or end_index_color == self.turn: 
+            # Move stone
+            self.board[start_index] -= self.turn
+            self.board[end_index] += self.turn
+        self.remove_die(legal_move.die)
+        self.generate_legal_moves()
 
-        # Remove die for this move
-
-        # If no more dice, next turn
+        # Next turn if no more dice
         if len(self.dice) == 0:
             self.next_turn()
+
+        return True
