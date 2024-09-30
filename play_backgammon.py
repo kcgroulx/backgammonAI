@@ -16,5 +16,4 @@ while backgammon.win == None:
 
     start_point = int(elements[0])
     end_point= int(elements[1])
-
-    backgammon.move_piece(start_point, end_point)
+    backgammon.user_move_piece(start_point, end_point)
