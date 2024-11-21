@@ -5,6 +5,7 @@ import random
 EMPTY = 0
 WHITE = 1
 BLACK = -1
+NUM_OF_POINTS = 26 
 
 
 def point_to_index(point):
@@ -13,12 +14,19 @@ def point_to_index(point):
 def index_to_point(index):
     return index + 1
 
-# LegalMove Class
-class LegalMove:
-    def __init__(self, start_point, end_point, die):
+def opposite_color(color):
+    return -color
+
+def num_of_pieces(point):
+    return abs(point)
+
+# Move Class
+class Move:
+    def __init__(self, start_point, end_point, die, piece_hit = False):
         self.start_point = start_point
         self.end_point = end_point
-        self.die = die
+        self.die = die 
+        self.piece_hit = piece_hit
 
 # Backgammon class
 # Backgammon board is a list indexed from 0-23.
@@ -31,7 +39,7 @@ class Backgammon:
         self.home = {WHITE: 0, BLACK: 0} # Home for each player
         self.turn = WHITE
         self.dice = []
-        self.legal_moves: list[LegalMove] = []
+        self.legal_moves: list[Move] = []
         self.win = None
 
         self.start()
@@ -74,6 +82,11 @@ class Backgammon:
             self.turn = WHITE
         self.roll_dice()
         self.generate_legal_moves()
+        
+        # If there are no legal moves, next turn
+        if len(self.legal_moves) == 0:
+            print("No legal moves") # TODO: Debug. Remove later
+            self.next_turn()
 
     # Gets color
     def get_color(self, index):
@@ -91,28 +104,33 @@ class Backgammon:
 
         # Interate through each die
         for die in self.dice:
-            # Check bar
-            if self.bar[self.turn] != 0:
-                # Get start and end point/index
-                start_point = 0 if self.turn == WHITE else 25
-                end_point = die if self.turn == WHITE else 25 - die
-                end_index = point_to_index(end_point)
+            # Check if there is a piece on the bar
+            if self.bar[self.turn] > 0:
+                # Check if the end_index is valid
+                start_point = 0
+                if self.turn == WHITE:
+                    end_index = die - 1
+                else: # BLACK
+                    start_point = 25
+                    end_index = 24 - die
+                
+                # Convert index to point
+                end_point = index_to_point(end_index)
                 end_index_color = self.get_color(end_index)
 
-                # If end_index is empty or the same color
+                # Case: end_index is empty or same color
                 if end_index_color == EMPTY or end_index_color == self.turn:
-                    self.legal_moves.append(LegalMove(start_point, end_point, die))
+                    self.legal_moves.append(Move(start_point, end_point, die, piece_hit=False))
+                # Case: end_index is opposite color
+                elif end_index_color == opposite_color(self.turn):
+                    # Can only hit if there is one piece
+                    if num_of_pieces(self.board[end_index]) == 1:
+                        self.legal_moves.append(Move(start_point, end_point, die, piece_hit=True))
+ 
+                continue # Continue since we can only move from the bar
 
-                # If opposite color
-                else:
-                    if abs(self.board[end_index]) == 1:
-                        self.legal_moves.append(LegalMove(start_point, end_point, die))
 
-                # continue since there is a piece on the bar
-                continue
-                
-
-            # Interate through each index on the board
+            # Iterate through the board
             for start_index in range(len(self.board)):
                 # Check if start index is the same color as turn
                 start_index_color = self.get_color(start_index)
@@ -129,18 +147,17 @@ class Backgammon:
                 start_point = index_to_point(start_index)
                 end_point = index_to_point(end_index)
 
-                # If end_index is empty or the same color
+                # Case: end_index is empty or same color
                 if end_index_color == EMPTY or end_index_color == self.turn:
-                    self.legal_moves.append(LegalMove(start_point, end_point, die))
+                    self.legal_moves.append(Move(start_point, end_point, die, piece_hit=False))
+                # Case: end_index is opposite color
+                elif end_index_color == opposite_color(self.turn):
+                    # Can only hit if there is one piece
+                    if num_of_pieces(self.board[end_index]) == 1:
+                        self.legal_moves.append(Move(start_point, end_point, die, piece_hit=True))
 
-                # If opposite color
-                else:
-                    if abs(self.board[end_index]) == 1:
-                        self.legal_moves.append(LegalMove(start_point, end_point, die))
-
-                        
-
-    def check_legal_move(self, start_point, end_point):
+    # Checks if start_point and end_point is in the legal moves list, if it is, return the move else return False
+    def get_legal_move(self, start_point, end_point):
         # Check if move exists in legal moves list
         for legal_move in self.legal_moves:
             if legal_move.start_point == start_point and legal_move.end_point == end_point:
@@ -156,53 +173,41 @@ class Backgammon:
             raise ValueError(f"Die value {die} not in dice list")
 
     # Moves piece on board
-    def move_piece(self, start_point, end_point):
+    def user_move_piece(self, start_point, end_point):
         # Verify move is legal
-        legal_move = self.check_legal_move(start_point, end_point)
+        legal_move = self.get_legal_move(start_point, end_point)
         if legal_move == False:
-            return False
+            return False # Move is not legal
 
+        end_index = point_to_index(end_point)
+
+        # Remove piece for start point
         if start_point == 0 or start_point == 25:
-            # Convert to index
-            end_index = point_to_index(end_point)
-            end_index_color = self.get_color(end_index)
-
-            # case: empty or same color
-            if end_index_color == EMPTY or end_index_color == self.turn: 
-                # Move stone
-                self.bar[self.turn] -= 1
-                self.board[end_index] += self.turn
-
-            # case: opposite color
-            if end_index_color != self.turn and end_index_color != EMPTY:
-                # Move stone
-                self.bar[self.turn] -= 1
-                self.board[end_index] = self.turn
-                self.bar[end_index_color] += 1
+            if start_point == 0:
+                self.bar[WHITE] -= 1
+            else:
+                self.bar[BLACK] -= 1
         else:
-            # Convert to index
+            # Convert to index notiation
             start_index = point_to_index(start_point)
-            end_index = point_to_index(end_point)
-            end_index_color = self.get_color(end_index)
+            self.board[start_index] -= self.turn
 
-            # case: empty or same color
-            if end_index_color == EMPTY or end_index_color == self.turn: 
-                # Move stone
-                self.board[start_index] -= self.turn
-                self.board[end_index] += self.turn
+        # Add piece for end point
+        # Case: No stone hit
+        if legal_move.piece_hit == False:
+            self.board[end_index] += self.turn
 
-            # case: opposite color
-            if end_index_color != self.turn and end_index_color != EMPTY:
-                # Move stone
-                self.board[start_index] -= self.turn
-                self.board[end_index] = self.turn
-                self.bar[end_index_color] += 1
+        # Case: Stone hit
+        elif legal_move.piece_hit == True:
+            self.board[end_index] = self.turn
+            self.bar[opposite_color(self.turn)] += 1
 
         self.remove_die(legal_move.die)
         self.generate_legal_moves()
 
-        # Next turn if no legal moves or no dice
-        if len(self.legal_moves) == 0 or len(self.dice) == 0:
+        # Next turn if no more dice or legal moves
+        if len(self.dice) == 0 or len(self.legal_moves) == 0:
             self.next_turn()
 
         return True
+ 

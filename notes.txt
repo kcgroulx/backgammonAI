@@ -1,0 +1,4 @@
+Create a class called move, this will stores all the things that the backgammon engine needs to do in order to make the move
+Things to store:
+    - Start and end position of the piece
+    - If engine needs to move piece to bar or home
