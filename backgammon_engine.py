@@ -6,19 +6,23 @@
 from enum import Enum
 import random
 
-# | 12 | 11 | 10 |  9 |  8 |  7 | BAR | 6  |  5 |  4 |  3 |  2 |  1 |
-# | W  |    |    |    |  B |    |     | B  |    |    |    |    |  W |    
-# | W  |    |    |    |  B |    |     | B  |    |    |    |    |  W |   
-# | W  |    |    |    |  B |    |     | B  |    |    |    |    |    |
-# | W  |    |    |    |    |    |     | B  |    |    |    |    |    |   
-# | W  |    |    |    |    |    |     | B  |    |    |    |    |    |   
-# |----|----|----|----|----|----|-----|----|----|----|----|----|----| 
-# | B  |    |    |    |    |    |     | W  |    |    |    |    |    |   
-# | B  |    |    |    |    |    |     | W  |    |    |    |    |    |   
-# | B  |    |    |    | W  |    |     | W  |    |    |    |    |    |   
-# | B  |    |    |    | W  |    |     | W  |    |    |    |    | B  |   
-# | B  |    |    |    | W  |    |     | W  |    |    |    |    | B  |   
-# | 13 | 14 | 15 | 16 | 17 | 18 | BAR | 19 | 20 | 21 | 22 | 23 | 24 |
+# ==============================================================
+# | 12| 11| 10|  9|  8|  7| BAR |  6|  5|  4|  3|  2|  1| HOME |
+# |===|===|===|===|===|===|=====|===|===|===|===|===|===|======|
+# | W |   |   |   | B |   |     | B |   |   |   |   | W |      |
+# | W |   |   |   | B |   |     | B |   |   |   |   | W |      |
+# | W |   |   |   | B |   |     | B |   |   |   |   |   |      |
+# | W |   |   |   |   |   |     | B |   |   |   |   |   |      |
+# | W |   |   |   |   |   |     | B |   |   |   |   |   |      |
+# |---|---|---|---|---|---|-----|---|---|---|---|---|---|------|
+# | B |   |   |   |   |   |     | W |   |   |   |   |   |      |
+# | B |   |   |   |   |   |     | W |   |   |   |   |   |      |
+# | B |   |   |   | W |   |     | W |   |   |   |   |   |      |
+# | B |   |   |   | W |   |     | W |   |   |   |   | B |      |
+# | B |   |   |   | W |   |     | W |   |   |   |   | B |      |
+# |===|===|===|===|===|===|=====|===|===|===|===|===|===|======|
+# | 13| 14| 15| 16| 17| 18| BAR | 19| 20| 21| 22| 23| 24| HOME |
+# ==============================================================
 
 # White Bar : 0
 # Black Bar: 25
@@ -34,6 +38,25 @@ class Point:
         self.index = index
         self.owner = owner
         self.count = count
+
+    def remove_stone(self):
+        if self.count > 0:
+            self.count -= 1
+        else:
+            raise ValueError("Trying to remove from an empty point")
+        
+    def add_stone(self, owner):
+        if self.owner == None or self.owner == owner:
+            self.count += 1
+        elif self.owner != owner and self.count == 1:
+            self.count = 1
+        else:
+            raise ValueError("add_stone")
+        self.owner = owner
+
+    def clear(self):
+        self.owner = None
+        self.count = 0
 
 class Home(Point):
     def __init__(self, index, owner=None, count=0):
@@ -63,6 +86,9 @@ class Dice:
         else:
             self.values.append(die1)
             self.values.append(die2)
+    
+    def remove_die(self, die):
+        self.values.remove(die)
 
 class Board:
     def __init__(self):
@@ -78,13 +104,16 @@ class Board:
         self.home_black = Home(index=0, owner=Player.BLACK)
 
     def clear(self):
-         for point in self.points:
-            point.count = 0
-            point.owner = None
+        for point in self.points:
+            point.clear()
+        self.bar_white.clear()
+        self.bar_black.clear()
+        self.home_white.clear()
+        self.home_black.clear()
+        
 
     def setup(self):
-        self.home.clear()
-        self.bar.clear()
+        # Clear board
         self.clear()
 
         # Set up board to the standard state
@@ -151,10 +180,14 @@ class Board:
             raise ValueError("Unknown Player enum")
 
 class Move:
-    def __init__(self, start_point = None, end_point = None, hit=False):
+    def __init__(self, start_point:Point, final_point:Point, die, hit=False):
         self.start_point = start_point
-        self.end_point = end_point
+        self.final_point = final_point
         self.hit = hit
+        self.die = die
+
+    def get_player(self) -> Player:
+        return self.start_point.owner
 
 # Class contains engine
 class BackgammonEngine:
@@ -166,7 +199,7 @@ class BackgammonEngine:
         self.dice = Dice()
         self.turn = Player.WHITE
         self.winner = None
-        self.legal_moves = []
+        self.legal_moves: list[Move] = []
 
     def start(self):
         # Reinitialize board object
@@ -210,24 +243,24 @@ class BackgammonEngine:
 
                             # Case 1a - empty or same player
                             if final_point.owner == None or final_point.owner == self.turn:
-                                self.legal_moves.append(Move(start_point=point, final_point=final_point))
+                                self.legal_moves.append(Move(start_point=point, final_point=final_point, die=die))
                                 continue
 
                             # Case 1b - opponent point (hit)
                             if final_point.owner != None and final_point.owner != self.turn and final_point.count == 1:
-                                self.legal_moves.append(Move(start_point=point, final_point=final_point, hit=True))
+                                self.legal_moves.append(Move(start_point=point, final_point=final_point, die=die, hit=True))
                                 continue
 
                         # Case 2 - Point to home
                         if self.board.are_all_player_stones_home(self.turn):
                             # Case 2a - Bearing off directly into home
                             if final_point_index == home.index:
-                                self.legal_moves.append(Move(start_point=point, end_point=home))
+                                self.legal_moves.append(Move(start_point=point, final_point=home, die=die))
 
                             # Case 2b - Bearing off with an overshoot
                             if point.index == self.board.get_point_furthest_from_home(self.turn).index:
                                 if (final_point_index - home.index) * self.turn.value > 0:
-                                    self.legal_moves.append(Move(start_point=point, end_point=home))
+                                    self.legal_moves.append(Move(start_point=point, final_point=home, die=die))
                                     continue
         # Case 3 - Bar to points
         elif bar.count > 0:
@@ -237,13 +270,60 @@ class BackgammonEngine:
             
                 # Case 3a - Empty or same player
                 if final_point.owner == None or final_point.owner == self.turn:
-                    self.legal_moves.append(Move(start_point=bar, final_point=final_point))
+                    self.legal_moves.append(Move(start_point=bar, final_point=final_point, die=die))
                     continue
 
                 # Case 3b - Opponent player (hit)
                 if final_point.owner != None and final_point.owner != self.turn and final_point.count == 1:
-                    self.legal_moves.append(Move(start_point=bar, final_point=final_point, hit=True))
+                    self.legal_moves.append(Move(start_point=bar, final_point=final_point, die=die, hit=True))
                     continue
 
     def make_move(self, move: Move):
-        pass
+        # Check if move exists in legal_moves list
+        if any(legal_move is move for legal_move in self.legal_moves):
+            raise ValueError("Move not found in legal_moves")
+
+        # Decrement start point count
+        move.start_point.remove_stone()
+
+        # Add stone to end point
+        move.final_point.add_stone(self.turn)
+
+        # Remove die used for move
+        self.dice.remove_die(move.die)
+        if len(self.dice.values) == 0:
+            self.next_turn()
+        else:
+            self.generate_legal_moves()
+
+    # Attempts to make move based on provided start and end index
+    # Returns True if successful and False otherwise
+    def attempt_move(self, start_index, end_index) -> bool:
+        # Search if move exists within the legal_moves list
+        for move in self.legal_moves:
+            if move.start_point.index == start_index and move.final_point.index == end_index:
+                self.make_move(move=move)
+                return True
+        return False
+    
+    def generate_ascii_image(self) -> str:
+        # TODO: Implement
+        ascii = ""
+        # top_row_points = self.board.points[::-1]
+
+
+        # # Top bar
+        # ascii += "==============================================================\n"
+        # ascii += "| 12| 11| 10|  9|  8|  7| BAR |  6|  5|  4|  3|  2|  1| HOME |\n"
+        # ascii += "|===|===|===|===|===|===|=====|===|===|===|===|===|===|======|\n"
+
+        
+
+
+
+        # # Bottom bar
+        # ascii += "|===|===|===|===|===|===|=====|===|===|===|===|===|===|======|\n"
+        # ascii += "| 13| 14| 15| 16| 17| 18| BAR | 19| 20| 21| 22| 23| 24| HOME |\n"
+        # ascii += "==============================================================\n"
+        return ascii
+
