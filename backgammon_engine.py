@@ -1,3 +1,8 @@
+# File Name: backgammon_engine.py
+# Author: Kyle Groulx
+# Date: November 7, 2025
+# Brief: Simple implementation of a backgammon engine
+
 from enum import Enum
 import random
 
@@ -131,7 +136,7 @@ class Board:
                     return point
 
         return None
-    
+
     # Returns true if all stones of player are home, false otherwise
     def are_all_player_stones_home(self, player) -> bool:
         if player == Player.WHITE:
@@ -146,11 +151,9 @@ class Board:
             raise ValueError("Unknown Player enum")
 
 class Move:
-    def __init__(self, start_point = None, end_point = None, home = None, bar = None, hit=False):
+    def __init__(self, start_point = None, end_point = None, hit=False):
         self.start_point = start_point
         self.end_point = end_point
-        self.home = home
-        self.bar = bar
         self.hit = hit
 
 # Class contains engine
@@ -219,22 +222,28 @@ class BackgammonEngine:
                         if self.board.are_all_player_stones_home(self.turn):
                             # Case 2a - Bearing off directly into home
                             if final_point_index == home.index:
-                                self.legal_moves.append(Move(start_point=point, home=home))
+                                self.legal_moves.append(Move(start_point=point, end_point=home))
 
                             # Case 2b - Bearing off with an overshoot
                             if point.index == self.board.get_point_furthest_from_home(self.turn).index:
                                 if (final_point_index - home.index) * self.turn.value > 0:
-                                    self.legal_moves.append(Move(start_point=point, home=home))
+                                    self.legal_moves.append(Move(start_point=point, end_point=home))
                                     continue
-        elif bar.count > 0:
-            pass
         # Case 3 - Bar to points
-            # Case 3a - Empty or same player
+        elif bar.count > 0:
+            for die in self.dice.values:
+                final_point_index = point.index + (die * self.turn.value)
+                final_point = self.board.get_point(final_point_index)
+            
+                # Case 3a - Empty or same player
+                if final_point.owner == None or final_point.owner == self.turn:
+                    self.legal_moves.append(Move(start_point=bar, final_point=final_point))
+                    continue
 
-            # Case 3b - Opponent player (hit)
-
-
-
+                # Case 3b - Opponent player (hit)
+                if final_point.owner != None and final_point.owner != self.turn and final_point.count == 1:
+                    self.legal_moves.append(Move(start_point=bar, final_point=final_point, hit=True))
+                    continue
 
     def make_move(self, move: Move):
         pass
