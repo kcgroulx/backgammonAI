@@ -6,10 +6,10 @@
 from enum import Enum
 import random
 
-# ==============================================================
-# | 12| 11| 10|  9|  8|  7| BAR |  6|  5|  4|  3|  2|  1| HOME |
-# |===|===|===|===|===|===|=====|===|===|===|===|===|===|======|
-# | W |   |   |   | B |   |     | B |   |   |   |   | W |      |
+# ============================================================== 
+# | 12| 11| 10|  9|  8|  7| BAR |  6|  5|  4|  3|  2|  1| HOME | 
+# |===|===|===|===|===|===|=====|===|===|===|===|===|===|======| 
+# | W |   |   |   | B |   |     | B |   |   |   |   | W |      | 
 # | W |   |   |   | B |   |     | B |   |   |   |   | W |      |
 # | W |   |   |   | B |   |     | B |   |   |   |   |   |      |
 # | W |   |   |   |   |   |     | B |   |   |   |   |   |      |
@@ -42,6 +42,8 @@ class Point:
     def remove_stone(self):
         if self.count > 0:
             self.count -= 1
+            if self.count == 0:
+                self.owner = None
         else:
             raise ValueError("Trying to remove from an empty point")
         
@@ -110,7 +112,6 @@ class Board:
         self.bar_black.clear()
         self.home_white.clear()
         self.home_black.clear()
-        
 
     def setup(self):
         # Clear board
@@ -120,19 +121,19 @@ class Board:
         self.points[0].owner = Player.WHITE
         self.points[0].count = 2
         self.points[5].owner = Player.BLACK
-        self.points[5].owner = 5
+        self.points[5].count = 5
         self.points[7].owner = Player.BLACK
-        self.points[7].owner = 3
+        self.points[7].count = 3
         self.points[11].owner = Player.WHITE
-        self.points[11].owner = 5
+        self.points[11].count = 5
         self.points[12].owner = Player.BLACK
-        self.points[12].owner = 5
+        self.points[12].count = 5
         self.points[16].owner = Player.WHITE
-        self.points[16].owner = 3
+        self.points[16].count = 3
         self.points[18].owner = Player.WHITE
-        self.points[18].owner = 5
+        self.points[18].count = 5
         self.points[23].owner = Player.BLACK
-        self.points[23].owner = 2
+        self.points[23].count = 2
 
     def get_point(self, index) -> Point:
         if index < 1 or index > 24:
@@ -149,7 +150,7 @@ class Board:
             if point.index > 0 and point.index < 6:
                 return True
             return False
-    
+
     # Returns the point with a stone of player furthest from its home
     def get_point_furthest_from_home(self, player:Player) -> Point:
         # White: Start at index = 1
@@ -221,6 +222,9 @@ class BackgammonEngine:
 
         self.dice.roll()
         self.generate_legal_moves()
+    
+        if len(self.legal_moves) == 0:
+            self.next_turn()
 
     def generate_legal_moves(self):
         self.legal_moves.clear()
@@ -265,7 +269,7 @@ class BackgammonEngine:
         # Case 3 - Bar to points
         elif bar.count > 0:
             for die in self.dice.values:
-                final_point_index = point.index + (die * self.turn.value)
+                final_point_index = bar.index + (die * self.turn.value)
                 final_point = self.board.get_point(final_point_index)
             
                 # Case 3a - Empty or same player
@@ -280,8 +284,11 @@ class BackgammonEngine:
 
     def make_move(self, move: Move):
         # Check if move exists in legal_moves list
-        if any(legal_move is move for legal_move in self.legal_moves):
+        if any(legal_move is move for legal_move in self.legal_moves) == False:
             raise ValueError("Move not found in legal_moves")
+        
+        if self.winner != None:
+            raise ValueError("Already a winner")
 
         # Decrement start point count
         move.start_point.remove_stone()
@@ -289,12 +296,27 @@ class BackgammonEngine:
         # Add stone to end point
         move.final_point.add_stone(self.turn)
 
+        # If hit, add stone to enemy bar
+        if move.hit == True:
+            if self.turn == Player.WHITE:
+                self.board.bar_black.count += 1
+            else:
+                self.board.bar_white.count += 1
+
+        # Check for win
+        if self.turn == Player.WHITE and self.board.get_point_furthest_from_home().index == 25:
+            self.winner = Player.WHITE
+        elif self.turn == Player.BLACK and self.board.get_point_furthest_from_home().index == 0:
+            self.winner = Player.BLACK
+
         # Remove die used for move
         self.dice.remove_die(move.die)
         if len(self.dice.values) == 0:
             self.next_turn()
         else:
             self.generate_legal_moves()
+            if len(self.legal_moves) == 0:
+                self.next_turn()
 
     # Attempts to make move based on provided start and end index
     # Returns True if successful and False otherwise
@@ -307,23 +329,131 @@ class BackgammonEngine:
         return False
     
     def generate_ascii_image(self) -> str:
-        # TODO: Implement
-        ascii = ""
-        # top_row_points = self.board.points[::-1]
+        CELL_W, BAR_W, HOME_W = 3, 5, 6
 
+        def pad(s: str, w: int) -> str:
+            s = s[:w] if len(s) > w else s
+            return s + (" " * (w - len(s)))
 
-        # # Top bar
-        # ascii += "==============================================================\n"
-        # ascii += "| 12| 11| 10|  9|  8|  7| BAR |  6|  5|  4|  3|  2|  1| HOME |\n"
-        # ascii += "|===|===|===|===|===|===|=====|===|===|===|===|===|===|======|\n"
+        def sym(owner):
+            return " " if owner is None else ("W" if owner == Player.WHITE else "B")
 
-        
+        # Point cells
+        def top_cell(p: Point, r: int) -> str:
+            c = p.count
+            if c == 0:
+                return " " * CELL_W
+            s = sym(p.owner)
+            if c <= 5:
+                return " " + s + " " if r < c else " " * CELL_W
+            return pad(f"{s}{c:>2}" if r == 4 else f" {s} ", CELL_W)
 
+        def bot_cell(p: Point, r: int) -> str:
+            c = p.count
+            if c == 0:
+                return " " * CELL_W
+            s = sym(p.owner)
+            if c <= 5:
+                return " " + s + " " if r >= 5 - c else " " * CELL_W
+            return pad(f"{s}{c:>2}" if r == 0 else f" {s} ", CELL_W)
 
+        # Bar/Home cells
+        def bar_top_cell(b_count: int, r: int) -> str:
+            if b_count == 0:
+                return " " * BAR_W
+            if b_count <= 5:
+                return pad("  B  " if r < b_count else "", BAR_W)
+            return pad(f" B{b_count:>2}" if r == 4 else "  B  ", BAR_W)
 
-        # # Bottom bar
-        # ascii += "|===|===|===|===|===|===|=====|===|===|===|===|===|===|======|\n"
-        # ascii += "| 13| 14| 15| 16| 17| 18| BAR | 19| 20| 21| 22| 23| 24| HOME |\n"
-        # ascii += "==============================================================\n"
-        return ascii
+        def bar_bot_cell(w_count: int, r: int) -> str:
+            if w_count == 0:
+                return " " * BAR_W
+            if w_count <= 5:
+                return pad("  W  " if r >= 5 - w_count else "", BAR_W)
+            return pad(f" W{w_count:>2}" if r == 0 else "  W  ", BAR_W)
+
+        def home_top_cell(w_off: int, r: int) -> str:
+            if w_off == 0:
+                return " " * HOME_W
+            if w_off <= 5:
+                return pad("  W   " if r < w_off else "", HOME_W)
+            return pad(f" W{w_off:>2} " if r == 4 else "  W   ", HOME_W)
+
+        def home_bot_cell(b_off: int, r: int) -> str:
+            if b_off == 0:
+                return " " * HOME_W
+            if b_off <= 5:
+                return pad("  B   " if r >= 5 - b_off else "", HOME_W)
+            return pad(f" B{b_off:>2} " if r == 0 else "  B   ", HOME_W)
+
+        # Points in display order
+        top_points = [self.board.get_point(i) for i in range(12, 0, -1)]
+        bot_points = [self.board.get_point(i) for i in range(13, 25)]
+
+        # Tally values
+        barW = self.board.bar_white.count
+        barB = self.board.bar_black.count
+        offW = self.board.home_white.count
+        offB = self.board.home_black.count
+
+        # Header/footer builder that works both directions
+        def _index_segment(a: int, b: int):
+            step = 1 if b >= a else -1
+            return range(a, b + step, step)
+
+        def header_line(left_start, left_end, right_start, right_end) -> str:
+            left_nums = _index_segment(left_start, left_end)
+            right_nums = _index_segment(right_start, right_end)
+            left  = "|" + "|".join(f"{i:>3}" for i in left_nums) + "|"
+            right = "|" + "|".join(f"{i:>3}" for i in right_nums) + "|"
+            # IMPORTANT: no extra '|' before {right}
+            return f"{left} BAR {right} HOME |"
+
+        header = header_line(12, 7, 6, 1)
+        footer = header_line(13, 18, 19, 24)
+
+        border  = "=" * len(header)
+        sep_top = "|" + ("===|" * 6) + "=====|" + ("===|" * 6) + "======|"
+        sep_mid = "|" + ("---|" * 6) + "-----|" + ("---|" * 6) + "------|"
+
+        # Build the board
+        lines = []
+        lines.append(border)
+        lines.append(header)
+        lines.append(sep_top)
+
+        # Top half (5 rows)
+        for r in range(5):
+            row = "|"
+            for p in top_points[:6]:
+                row += top_cell(p, r) + "|"
+            row += bar_top_cell(barB, r) + "|"
+            for p in top_points[6:]:
+                row += top_cell(p, r) + "|"
+            row += home_top_cell(offW, r) + "|"
+            lines.append(row)
+
+        lines.append(sep_mid)
+
+        # Bottom half (5 rows)
+        for r in range(5):
+            row = "|"
+            for p in bot_points[:6]:
+                row += bot_cell(p, r) + "|"
+            row += bar_bot_cell(barW, r) + "|"
+            for p in bot_points[6:]:
+                row += bot_cell(p, r) + "|"
+            row += home_bot_cell(offB, r) + "|"
+            lines.append(row)
+
+        lines.append(sep_top)
+        lines.append(footer)
+        lines.append(border)
+
+        # Dice + turn
+        dice_str = " ".join(str(v) for v in self.dice.values) or "No dice rolled"
+        lines.append("")
+        lines.append(f"Turn: {self.turn.name:<8}    Dice: {dice_str}")
+
+        return "\n".join(lines)
 
