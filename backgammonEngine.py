@@ -5,6 +5,7 @@
 
 from enum import Enum
 import random
+import copy
 
 # ==============================================================
 # | 12| 11| 10|  9|  8|  7| BAR |  6|  5|  4|  3|  2|  1| HOME |
@@ -38,6 +39,15 @@ class Point:
         self.index = index
         self.owner = owner
         self.count = count
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        new_obj = cls.__new__(cls)
+        memo[id(self)] = new_obj
+        new_obj.index = self.index
+        new_obj.owner = self.owner
+        new_obj.count = self.count
+        return new_obj
 
     def remove_stone(self):
         if self.count > 0:
@@ -75,6 +85,13 @@ class Bar(Point):
 class Dice:
     def __init__(self):
         self.values = []
+    
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        new_obj = cls.__new__(cls)
+        memo[id(self)] = new_obj
+        new_obj.values = list(self.values)
+        return new_obj
 
     def roll(self):
         self.values.clear()
@@ -108,6 +125,18 @@ class Board:
         # Home 25 and 0
         self.home_white = Home(index=25, owner=Player.WHITE)
         self.home_black = Home(index=0, owner=Player.BLACK)
+    
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        new_obj = cls.__new__(cls)
+        memo[id(self)] = new_obj
+
+        new_obj.points = [copy.deepcopy(p, memo) for p in self.points]
+        new_obj.bar_white = copy.deepcopy(self.bar_white, memo)
+        new_obj.bar_black = copy.deepcopy(self.bar_black, memo)
+        new_obj.home_white = copy.deepcopy(self.home_white, memo)
+        new_obj.home_black = copy.deepcopy(self.home_black, memo)
+        return new_obj
 
     def clear(self):
         for point in self.points:
@@ -123,14 +152,14 @@ class Board:
         self.clear()
 
         # Set up board to the standard state
-        # self.points[0].set_stones(2, Player.WHITE)
+        self.points[0].set_stones(2, Player.WHITE)
         self.points[5].set_stones(5, Player.BLACK)
-        # self.points[7].set_stones(3, Player.BLACK)
-        # self.points[11].set_stones(5, Player.WHITE)
-        # self.points[12].set_stones(5, Player.BLACK)
-        # self.points[16].set_stones(3, Player.WHITE)
+        self.points[7].set_stones(3, Player.BLACK)
+        self.points[11].set_stones(5, Player.WHITE)
+        self.points[12].set_stones(5, Player.BLACK)
+        self.points[16].set_stones(3, Player.WHITE)
         self.points[18].set_stones(5, Player.WHITE)
-        # self.points[23].set_stones(2, Player.BLACK)
+        self.points[23].set_stones(2, Player.BLACK)
 
     def get_point(self, index) -> Point:
         if index < 1 or index > 24:
@@ -185,6 +214,18 @@ class Move:
         self.final_point = final_point
         self.hit = hit
         self.die = die
+    
+    def __deepcopy__(self, memo):
+        # Usually not used by engine deepcopy; provided for safety
+        cls = self.__class__
+        new_obj = cls.__new__(cls)
+        memo[id(self)] = new_obj
+        # Keep references (do NOT deepcopy points here)
+        new_obj.start_point = self.start_point
+        new_obj.final_point = self.final_point
+        new_obj.hit = self.hit
+        new_obj.die = self.die
+        return new_obj
 
     def get_player(self) -> Player:
         return self.start_point.owner
@@ -201,6 +242,24 @@ class BackgammonEngine:
         self.winner = None
         self.legal_moves: list[Move] = []
 
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        new_obj = cls.__new__(cls)
+        memo[id(self)] = new_obj
+
+        # Deep copy the independent game state
+        new_obj.board = copy.deepcopy(self.board, memo)
+        new_obj.dice = copy.deepcopy(self.dice, memo)
+
+        # Enums (Player) are immutable/safe to reuse
+        new_obj.turn = self.turn
+        new_obj.winner = self.winner
+
+        # Never copy old legal moves; rebuild for the new board/dice state
+        new_obj.legal_moves = []
+        new_obj.generate_legal_moves()
+        return new_obj
+
     def start(self):
         # Reinitialize board object
         self.board.setup()
@@ -208,7 +267,7 @@ class BackgammonEngine:
         self.winner = None
         self.next_turn()
        
-    def next_turn(self):
+    def next_turn(self, roll=True):
         # New game
         if self.turn == None:
             self.turn = Player.WHITE
@@ -219,11 +278,11 @@ class BackgammonEngine:
             else:
                 self.turn = Player.WHITE
 
-        self.dice.roll()
-        self.generate_legal_moves()
-    
-        if len(self.legal_moves) == 0:
-            self.next_turn()
+        if roll == True:
+            self.dice.roll()
+            self.generate_legal_moves()
+            if len(self.legal_moves) == 0:
+                self.next_turn()
 
     def generate_legal_moves(self):
         self.legal_moves.clear()
