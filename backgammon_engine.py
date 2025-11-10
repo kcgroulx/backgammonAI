@@ -6,10 +6,10 @@
 from enum import Enum
 import random
 
-# ============================================================== 
-# | 12| 11| 10|  9|  8|  7| BAR |  6|  5|  4|  3|  2|  1| HOME | 
-# |===|===|===|===|===|===|=====|===|===|===|===|===|===|======| 
-# | W |   |   |   | B |   |     | B |   |   |   |   | W |      | 
+# ==============================================================
+# | 12| 11| 10|  9|  8|  7| BAR |  6|  5|  4|  3|  2|  1| HOME |
+# |===|===|===|===|===|===|=====|===|===|===|===|===|===|======|
+# | W |   |   |   | B |   |     | B |   |   |   |   | W |      |
 # | W |   |   |   | B |   |     | B |   |   |   |   | W |      |
 # | W |   |   |   | B |   |     | B |   |   |   |   |   |      |
 # | W |   |   |   |   |   |     | B |   |   |   |   |   |      |
@@ -55,6 +55,10 @@ class Point:
         else:
             raise ValueError("add_stone")
         self.owner = owner
+
+    def set_stones(self, count, owner):
+        self.owner = owner
+        self.count = count
 
     def clear(self):
         self.owner = None
@@ -112,28 +116,21 @@ class Board:
         self.bar_black.clear()
         self.home_white.clear()
         self.home_black.clear()
+        
 
     def setup(self):
         # Clear board
         self.clear()
 
         # Set up board to the standard state
-        self.points[0].owner = Player.WHITE
-        self.points[0].count = 2
-        self.points[5].owner = Player.BLACK
-        self.points[5].count = 5
-        self.points[7].owner = Player.BLACK
-        self.points[7].count = 3
-        self.points[11].owner = Player.WHITE
-        self.points[11].count = 5
-        self.points[12].owner = Player.BLACK
-        self.points[12].count = 5
-        self.points[16].owner = Player.WHITE
-        self.points[16].count = 3
-        self.points[18].owner = Player.WHITE
-        self.points[18].count = 5
-        self.points[23].owner = Player.BLACK
-        self.points[23].count = 2
+        # self.points[0].set_stones(2, Player.WHITE)
+        self.points[5].set_stones(5, Player.BLACK)
+        # self.points[7].set_stones(3, Player.BLACK)
+        # self.points[11].set_stones(5, Player.WHITE)
+        # self.points[12].set_stones(5, Player.BLACK)
+        # self.points[16].set_stones(3, Player.WHITE)
+        self.points[18].set_stones(5, Player.WHITE)
+        # self.points[23].set_stones(2, Player.BLACK)
 
     def get_point(self, index) -> Point:
         if index < 1 or index > 24:
@@ -150,7 +147,7 @@ class Board:
             if point.index > 0 and point.index < 6:
                 return True
             return False
-
+    
     # Returns the point with a stone of player furthest from its home
     def get_point_furthest_from_home(self, player:Player) -> Point:
         # White: Start at index = 1
@@ -158,12 +155,14 @@ class Board:
             for point in self.points:
                 if point.owner == Player.WHITE:
                     return point
+            return self.home_white
         
         # Black: Start at index = 24
         if player == Player.BLACK:
             for point in reversed(self.points):
                 if point.owner == Player.BLACK:
                     return point
+            return self.home_black
 
         return None
 
@@ -304,9 +303,9 @@ class BackgammonEngine:
                 self.board.bar_white.count += 1
 
         # Check for win
-        if self.turn == Player.WHITE and self.board.get_point_furthest_from_home().index == 25:
+        if self.turn == Player.WHITE and self.board.get_point_furthest_from_home(Player.WHITE).index == 25:
             self.winner = Player.WHITE
-        elif self.turn == Player.BLACK and self.board.get_point_furthest_from_home().index == 0:
+        elif self.turn == Player.BLACK and self.board.get_point_furthest_from_home(Player.BLACK).index == 0:
             self.winner = Player.BLACK
 
         # Remove die used for move
@@ -321,6 +320,10 @@ class BackgammonEngine:
     # Attempts to make move based on provided start and end index
     # Returns True if successful and False otherwise
     def attempt_move(self, start_index, end_index) -> bool:
+        # Check for winner
+        if self.winner != None:
+            return False
+
         # Search if move exists within the legal_moves list
         for move in self.legal_moves:
             if move.start_point.index == start_index and move.final_point.index == end_index:
@@ -328,6 +331,8 @@ class BackgammonEngine:
                 return True
         return False
     
+
+    # Used for debugging or playing inside the terminal
     def generate_ascii_image(self) -> str:
         CELL_W, BAR_W, HOME_W = 3, 5, 6
 
@@ -358,33 +363,37 @@ class BackgammonEngine:
             return pad(f"{s}{c:>2}" if r == 0 else f" {s} ", CELL_W)
 
         # Bar/Home cells
-        def bar_top_cell(b_count: int, r: int) -> str:
-            if b_count == 0:
-                return " " * BAR_W
-            if b_count <= 5:
-                return pad("  B  " if r < b_count else "", BAR_W)
-            return pad(f" B{b_count:>2}" if r == 4 else "  B  ", BAR_W)
-
-        def bar_bot_cell(w_count: int, r: int) -> str:
+        def bar_top_cell(w_count: int, r: int) -> str:
+            """Top bar shows White (since White re-enters downward)."""
             if w_count == 0:
                 return " " * BAR_W
             if w_count <= 5:
-                return pad("  W  " if r >= 5 - w_count else "", BAR_W)
-            return pad(f" W{w_count:>2}" if r == 0 else "  W  ", BAR_W)
+                return pad("  W  " if r < w_count else "", BAR_W)
+            return pad(f" W{w_count:>2}" if r == 4 else "  W  ", BAR_W)
 
-        def home_top_cell(w_off: int, r: int) -> str:
-            if w_off == 0:
-                return " " * HOME_W
-            if w_off <= 5:
-                return pad("  W   " if r < w_off else "", HOME_W)
-            return pad(f" W{w_off:>2} " if r == 4 else "  W   ", HOME_W)
+        def bar_bot_cell(b_count: int, r: int) -> str:
+            """Bottom bar shows Black (since Black re-enters upward)."""
+            if b_count == 0:
+                return " " * BAR_W
+            if b_count <= 5:
+                return pad("  B  " if r >= 5 - b_count else "", BAR_W)
+            return pad(f" B{b_count:>2}" if r == 0 else "  B  ", BAR_W)
 
-        def home_bot_cell(b_off: int, r: int) -> str:
+        def home_top_cell(b_off: int, r: int) -> str:
+            """Top home shows Black borne-off checkers."""
             if b_off == 0:
                 return " " * HOME_W
             if b_off <= 5:
-                return pad("  B   " if r >= 5 - b_off else "", HOME_W)
-            return pad(f" B{b_off:>2} " if r == 0 else "  B   ", HOME_W)
+                return pad("  B   " if r < b_off else "", HOME_W)
+            return pad(f" B{b_off:>2} " if r == 4 else "  B   ", HOME_W)
+
+        def home_bot_cell(w_off: int, r: int) -> str:
+            """Bottom home shows White borne-off checkers."""
+            if w_off == 0:
+                return " " * HOME_W
+            if w_off <= 5:
+                return pad("  W   " if r >= 5 - w_off else "", HOME_W)
+            return pad(f" W{w_off:>2} " if r == 0 else "  W   ", HOME_W)
 
         # Points in display order
         top_points = [self.board.get_point(i) for i in range(12, 0, -1)]
@@ -396,7 +405,7 @@ class BackgammonEngine:
         offW = self.board.home_white.count
         offB = self.board.home_black.count
 
-        # Header/footer builder that works both directions
+        # Header/footer builder
         def _index_segment(a: int, b: int):
             step = 1 if b >= a else -1
             return range(a, b + step, step)
@@ -406,7 +415,6 @@ class BackgammonEngine:
             right_nums = _index_segment(right_start, right_end)
             left  = "|" + "|".join(f"{i:>3}" for i in left_nums) + "|"
             right = "|" + "|".join(f"{i:>3}" for i in right_nums) + "|"
-            # IMPORTANT: no extra '|' before {right}
             return f"{left} BAR {right} HOME |"
 
         header = header_line(12, 7, 6, 1)
@@ -427,10 +435,10 @@ class BackgammonEngine:
             row = "|"
             for p in top_points[:6]:
                 row += top_cell(p, r) + "|"
-            row += bar_top_cell(barB, r) + "|"
+            row += bar_top_cell(barW, r) + "|"
             for p in top_points[6:]:
                 row += top_cell(p, r) + "|"
-            row += home_top_cell(offW, r) + "|"
+            row += home_top_cell(offB, r) + "|"
             lines.append(row)
 
         lines.append(sep_mid)
@@ -440,20 +448,22 @@ class BackgammonEngine:
             row = "|"
             for p in bot_points[:6]:
                 row += bot_cell(p, r) + "|"
-            row += bar_bot_cell(barW, r) + "|"
+            row += bar_bot_cell(barB, r) + "|"
             for p in bot_points[6:]:
                 row += bot_cell(p, r) + "|"
-            row += home_bot_cell(offB, r) + "|"
+            row += home_bot_cell(offW, r) + "|"
             lines.append(row)
 
         lines.append(sep_top)
         lines.append(footer)
         lines.append(border)
 
-        # Dice + turn
+        # Dice + turn + winner
         dice_str = " ".join(str(v) for v in self.dice.values) or "No dice rolled"
         lines.append("")
         lines.append(f"Turn: {self.turn.name:<8}    Dice: {dice_str}")
 
-        return "\n".join(lines)
+        winner_text = f" WINNER: {self.winner.name} " if self.winner else " WINNER: (none) "
+        lines.append(winner_text.center(len(border), "="))
 
+        return "\n".join(lines)
