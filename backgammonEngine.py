@@ -369,6 +369,7 @@ class BackgammonEngine:
 
         # Remove die used for move
         self.dice.remove_die(move.die)
+
         if len(self.dice.values) == 0:
             self.next_turn()
         else:

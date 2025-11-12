@@ -32,9 +32,9 @@ bot = backgammonBot.RandomBot()
 
 
 bot1 = backgammonBot.SimpleHeuristicBot()
-bot2 = backgammonBot.SimpleHeuristicBot()
+bot2 = backgammonBot.RandomBot()
 arbiter = backgammonArbiter.BackgammonArbiter(bot1=bot1, bot2=bot2)
 
-results = arbiter.simulate(iterations=100, print_progress=True)
+results = arbiter.simulate(iterations=10)
 
 print(f"Results: {bot1.name} wins: {results.bot1_score}    {bot2.name} wins: {results.bot2_score}   Simulation Time (ms): {results.simulation_time_ms}")
