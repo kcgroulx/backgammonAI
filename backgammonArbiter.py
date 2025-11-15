@@ -2,10 +2,11 @@ import time
 from backgammonBot import BackgammonBot
 from backgammonEngine import BackgammonEngine, Player
 
+
 class ArbiterResults:
     def __init__(self):
-        self.bot1_score = 0
-        self.bot2_score = 0
+        self.bot1_wins = 0
+        self.bot2_wins = 0
         self.simulation_time_ms = 0
 
 class BackgammonArbiter:
@@ -27,16 +28,22 @@ class BackgammonArbiter:
     def simulate_single_game(self, white_bot:BackgammonBot, black_bot:BackgammonBot, results:ArbiterResults):
         engine = BackgammonEngine()
         engine.start()
+        hits = 0
+        moves = 0
 
         while engine.winner is None:
+            # print(f"Turn: {engine.turn.name}    Moves{moves}")
             bot = white_bot if engine.turn is Player.WHITE else black_bot
             move = bot.calculate_move(engine=engine)
             engine.make_move(move)
 
-        if engine.winner == Player.WHITE:
-            results.bot1_score += 1
-        elif engine.winner == Player.BLACK:
-            results.bot2_score += 1
-        else:
-            raise ValueError("idk")
+            moves += 1
+            if move.hit == True:
+                hits += 1
 
+        if engine.winner == Player.WHITE:
+            results.bot1_wins += 1
+        elif engine.winner == Player.BLACK:
+            results.bot2_wins += 1
+        else:
+            raise ValueError("Unknown Winner Value")

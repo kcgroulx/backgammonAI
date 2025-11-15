@@ -145,7 +145,10 @@ class Board:
         self.bar_black.clear()
         self.home_white.clear()
         self.home_black.clear()
-        
+        self.bar_white.owner = Player.WHITE
+        self.bar_black.owner = Player.BLACK
+        self.home_white.owner = Player.WHITE
+        self.home_black.owner = Player.BLACK
 
     def setup(self):
         # Clear board
@@ -165,17 +168,6 @@ class Board:
         if index < 1 or index > 24:
             raise ValueError("Index out of bounds")
         return self.points[index-1]
-    
-    # Checks if a point is in a players home
-    def in_home(self, player:Player, point:Point) -> bool:
-        if player == Player.WHITE:
-            if point.index < 25 and point.index > 17:
-                return True
-            return False
-        elif player == Player.BLACK:
-            if point.index > 0 and point.index < 6:
-                return True
-            return False
     
     # Returns the point with a stone of player furthest from its home
     def get_point_furthest_from_home(self, player:Player) -> Point:
@@ -207,6 +199,15 @@ class Board:
             return False
         else:
             raise ValueError("Unknown Player enum")
+    
+    # Returns how far a point is from its home
+    def distance_from_home(self, point:Point) -> int:
+        if point.owner == Player.WHITE:
+            return 25 - point.index
+        elif point.owner == Player.BLACK:
+            return point.index
+        else:
+            raise ValueError
 
 class Move:
     def __init__(self, start_point:Point, final_point:Point, die, hit=False):
@@ -268,15 +269,13 @@ class BackgammonEngine:
         self.next_turn()
        
     def next_turn(self, roll=True):
-        # New game
+        # Swaps turn
         if self.turn == None:
-            self.turn = Player.WHITE
+            self.turn = Player.BLACK
+        elif self.turn == Player.WHITE:
+            self.turn = Player.BLACK
         else:
-            # Swaps turn
-            if self.turn == Player.WHITE:
-                self.turn = Player.BLACK
-            else:
-                self.turn = Player.WHITE
+            self.turn = Player.WHITE
 
         if roll == True:
             self.dice.roll()
@@ -391,6 +390,12 @@ class BackgammonEngine:
                 return True
         return False
     
+
+    def swap_player_value(self, player: Player) -> Player:
+        return {
+            Player.WHITE: Player.BLACK,
+            Player.BLACK: Player.WHITE
+        }[player]
 
     # Used for debugging or playing inside the terminal
     def generate_ascii_image(self) -> str:
