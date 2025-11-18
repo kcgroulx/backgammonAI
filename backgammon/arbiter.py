@@ -1,6 +1,7 @@
 import time
-from backgammonBot import BackgammonBot
-from backgammonEngine import BackgammonEngine, Player
+
+from backgammon.bots import BackgammonBot
+from backgammon.engine import BackgammonEngine, Player
 
 
 class ArbiterResults:
@@ -32,7 +33,6 @@ class BackgammonArbiter:
         moves = 0
 
         while engine.winner is None:
-            # print(f"Turn: {engine.turn.name}    Moves{moves}")
             bot = white_bot if engine.turn is Player.WHITE else black_bot
             move = bot.calculate_move(engine=engine)
             engine.make_move(move)
